@@ -13,10 +13,12 @@ use std::path::PathBuf;
 use tracing::info;
 
 mod checks;
+mod github;
 mod report;
 mod seam;
 mod register;
 
+use github::{GitHubAppConfig, GitHubClient};
 use report::{OutputFormat, Reporter};
 
 /// Seam hygiene auditor for architectural boundaries
@@ -101,6 +103,94 @@ enum Commands {
         /// Stage identifier (e.g., f1, f2)
         #[arg(long)]
         stage: String,
+    },
+
+    /// GitHub App integration commands
+    #[command(subcommand)]
+    Github(GitHubCommands),
+}
+
+#[derive(Subcommand, Debug)]
+enum GitHubCommands {
+    /// Create a GitHub Check Run with seam check results
+    CheckRun {
+        /// Repository owner (e.g., "hyperpolymath")
+        #[arg(long, env = "GITHUB_REPOSITORY_OWNER")]
+        owner: String,
+
+        /// Repository name (e.g., "seambot")
+        #[arg(long, env = "GITHUB_REPOSITORY_NAME")]
+        repo: String,
+
+        /// Commit SHA to report on
+        #[arg(long, env = "GITHUB_SHA")]
+        sha: String,
+
+        /// GitHub App ID
+        #[arg(long, env = "GITHUB_APP_ID")]
+        app_id: u64,
+
+        /// Path to GitHub App private key PEM file
+        #[arg(long, env = "GITHUB_APP_PRIVATE_KEY_PATH")]
+        private_key: PathBuf,
+
+        /// GitHub App installation ID
+        #[arg(long, env = "GITHUB_APP_INSTALLATION_ID")]
+        installation_id: u64,
+
+        /// GitHub API base URL (for GitHub Enterprise)
+        #[arg(long, env = "GITHUB_API_URL")]
+        api_url: Option<String>,
+
+        /// Fail on warnings
+        #[arg(long)]
+        strict: bool,
+    },
+
+    /// Post seam check results as a PR comment
+    PrComment {
+        /// Repository owner
+        #[arg(long, env = "GITHUB_REPOSITORY_OWNER")]
+        owner: String,
+
+        /// Repository name
+        #[arg(long, env = "GITHUB_REPOSITORY_NAME")]
+        repo: String,
+
+        /// Pull request number
+        #[arg(long)]
+        pr: u64,
+
+        /// GitHub App ID
+        #[arg(long, env = "GITHUB_APP_ID")]
+        app_id: u64,
+
+        /// Path to GitHub App private key PEM file
+        #[arg(long, env = "GITHUB_APP_PRIVATE_KEY_PATH")]
+        private_key: PathBuf,
+
+        /// GitHub App installation ID
+        #[arg(long, env = "GITHUB_APP_INSTALLATION_ID")]
+        installation_id: u64,
+
+        /// GitHub API base URL (for GitHub Enterprise)
+        #[arg(long, env = "GITHUB_API_URL")]
+        api_url: Option<String>,
+    },
+
+    /// Verify a GitHub webhook signature
+    VerifyWebhook {
+        /// Webhook secret
+        #[arg(long, env = "GITHUB_WEBHOOK_SECRET")]
+        secret: String,
+
+        /// X-Hub-Signature-256 header value
+        #[arg(long)]
+        signature: String,
+
+        /// Path to payload file (or - for stdin)
+        #[arg(long)]
+        payload: PathBuf,
     },
 }
 
@@ -189,6 +279,119 @@ async fn main() -> Result<()> {
 
             if result.has_errors() {
                 std::process::exit(1);
+            }
+        }
+
+        Commands::Github(github_cmd) => {
+            match github_cmd {
+                GitHubCommands::CheckRun {
+                    owner,
+                    repo,
+                    sha,
+                    app_id,
+                    private_key,
+                    installation_id,
+                    api_url,
+                    strict,
+                } => {
+                    // Run seam checks
+                    let result = checks::run_all_checks(&repo_path).await?;
+
+                    // Configure GitHub client
+                    let mut config = GitHubAppConfig::new(
+                        app_id,
+                        private_key.display().to_string(),
+                        installation_id,
+                    );
+                    if let Some(url) = api_url {
+                        config = config.with_enterprise_url(url);
+                    }
+
+                    let mut client = GitHubClient::new(config)?;
+
+                    // Create check run
+                    let check_run = client
+                        .create_check_run(&owner, &repo, &sha, "seambot")
+                        .await?;
+
+                    info!("Created check run: {}", check_run.html_url);
+
+                    // Update with results
+                    let updated = client
+                        .update_check_run(&owner, &repo, check_run.id, &result)
+                        .await?;
+
+                    info!(
+                        "Check run completed: {} (conclusion: {:?})",
+                        updated.html_url, updated.conclusion
+                    );
+
+                    // Also output locally
+                    let reporter = Reporter::new(cli.format);
+                    reporter.output(&result, None)?;
+
+                    if result.has_errors() || (strict && result.has_warnings()) {
+                        std::process::exit(1);
+                    }
+                }
+
+                GitHubCommands::PrComment {
+                    owner,
+                    repo,
+                    pr,
+                    app_id,
+                    private_key,
+                    installation_id,
+                    api_url,
+                } => {
+                    // Run seam checks
+                    let result = checks::run_all_checks(&repo_path).await?;
+
+                    // Configure GitHub client
+                    let mut config = GitHubAppConfig::new(
+                        app_id,
+                        private_key.display().to_string(),
+                        installation_id,
+                    );
+                    if let Some(url) = api_url {
+                        config = config.with_enterprise_url(url);
+                    }
+
+                    let mut client = GitHubClient::new(config)?;
+
+                    // Post comment
+                    let comment = client
+                        .post_pr_comment(&owner, &repo, pr, &result)
+                        .await?;
+
+                    info!("Posted comment: {}", comment.html_url);
+
+                    // Also output locally
+                    let reporter = Reporter::new(cli.format);
+                    reporter.output(&result, None)?;
+                }
+
+                GitHubCommands::VerifyWebhook {
+                    secret,
+                    signature,
+                    payload,
+                } => {
+                    let payload_bytes = std::fs::read(&payload)?;
+                    let valid = github::verify_webhook_signature(
+                        &payload_bytes,
+                        &signature,
+                        &secret,
+                    );
+
+                    if valid {
+                        info!("Webhook signature is valid");
+                        println!("valid");
+                    } else {
+                        info!("Webhook signature is INVALID");
+                        println!("invalid");
+                        std::process::exit(1);
+                    }
+                }
             }
         }
     }

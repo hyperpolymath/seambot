@@ -53,6 +53,15 @@ minijinja = "2"
 # Regex for pattern matching
 regex = "1"
 
+# JWT for GitHub App authentication
+jsonwebtoken = "9"
+
+# RSA key handling for GitHub App
+rsa = { version = "0.9", features = ["pem"] }
+
+# HMAC-SHA256 for webhook signature verification
+hmac-sha256 = "1"
+
 # AsciiDoc parsing (basic)
 # Note: Full AsciiDoc parsing would need asciidoctor via subprocess
 
