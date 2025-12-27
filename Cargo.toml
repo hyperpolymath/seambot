@@ -3,7 +3,7 @@
 [package]
 name = "seambot"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 authors = ["hyperpolymath <hyperpolymath@users.noreply.github.com>"]
 description = "Seam hygiene auditor - tracks, enforces, and detects drift in architectural boundaries"
 license = "AGPL-3.0-or-later"
