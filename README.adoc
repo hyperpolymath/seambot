@@ -1,0 +1,276 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+= Seambot
+:toc: macro
+:toclevels: 3
+:icons: font
+
+Seam hygiene auditor - tracks, enforces, and detects drift in architectural boundaries.
+
+image:https://img.shields.io/github/license/hyperpolymath/seambot[License]
+image:https://img.shields.io/crates/v/seambot[Crates.io]
+
+toc::[]
+
+== Overview
+
+Seambot is a governor and auditor, not a designer. It ensures that declared seams
+remain explicit, stable, and correctly exercised over time.
+
+=== What are Seams?
+
+Seams are first-class architectural artifacts representing boundaries between components.
+They are not incidental - they are deliberate design decisions that encode:
+
+* **Invariants**: Rules that must hold across the boundary
+* **Interfaces**: Contracts between components
+* **Isolation**: What can and cannot cross
+
+=== Philosophy
+
+[quote]
+"If finishbot tells us whether a repo is ready to release, seambot tells us whether it is still the same system we thought we built."
+
+== Features
+
+* **Register Verification** - Validates seam register completeness
+* **Conformance Checking** - Ensures examples exist and are valid
+* **Drift Detection** - Detects changes to seam interfaces
+* **Freeze Stamps** - Validates stage freezes include seam state
+* **Hidden Channel Detection** - Basic heuristics for finding implicit dependencies
+* **Multiple Output Formats** - Text, JSON, Markdown, SARIF
+
+== Installation
+
+=== From crates.io
+
+[source,bash]
+----
+cargo install seambot
+----
+
+=== From source
+
+[source,bash]
+----
+git clone https://github.com/hyperpolymath/seambot.git
+cd seambot
+cargo build --release
+----
+
+== Usage
+
+=== Initialize Seam Infrastructure
+
+[source,bash]
+----
+seambot init
+----
+
+This creates:
+
+* `spec/seams/seam-register.json` - Machine-readable seam index
+* `spec/seams/seam-register.adoc` - Human-readable documentation
+* `spec/seams/checklists/` - Seam checklists
+* `spec/seams/conformance/` - Conformance examples
+* `spec/seams/freeze-stamps/` - Stage freeze stamps
+
+=== Run All Checks
+
+[source,bash]
+----
+seambot check
+seambot check --strict  # Fail on warnings
+seambot check --format json --output report.json
+----
+
+=== Check Register Completeness
+
+[source,bash]
+----
+seambot register
+----
+
+=== Check for Drift
+
+[source,bash]
+----
+seambot drift
+seambot drift --update-baseline  # Update baseline after review
+----
+
+=== Validate Conformance Examples
+
+[source,bash]
+----
+seambot conformance
+seambot conformance --seam specific-seam-id
+----
+
+=== Check Freeze Stamp
+
+[source,bash]
+----
+seambot freeze-check --stage f1
+----
+
+=== Generate Report
+
+[source,bash]
+----
+seambot report --format markdown --output SEAM-STATUS.md
+----
+
+== Seam Register Format
+
+[source,json]
+----
+{
+  "version": "1.0",
+  "repository": "my-repo",
+  "seams": [
+    {
+      "id": "api-domain",
+      "name": "API to Domain Boundary",
+      "description": "Separates HTTP handlers from business logic",
+      "side_a": ["api"],
+      "side_b": ["domain"],
+      "seam_type": "layer",
+      "invariants": [
+        {
+          "id": "no-http-in-domain",
+          "description": "Domain layer must not depend on HTTP types",
+          "verification": { "type_system": null },
+          "severity": "error"
+        }
+      ],
+      "frozen": false,
+      "ring": 0,
+      "checklist_path": "spec/seams/checklists/api-domain.adoc",
+      "conformance_paths": ["spec/seams/conformance/api-domain.adoc"]
+    }
+  ]
+}
+----
+
+== MVP Checks (v0.1)
+
+[cols="1,2,1"]
+|===
+| Check | Description | Severity
+
+| `register-exists`
+| Seam register file exists
+| Error
+
+| `seam-has-checklist`
+| Each seam has a checklist defined
+| Warning
+
+| `checklist-exists`
+| Checklist file exists at declared path
+| Error
+
+| `seam-has-conformance`
+| Each seam has conformance examples
+| Warning
+
+| `conformance-exists`
+| Conformance files exist at declared paths
+| Error
+
+| `seam-has-invariants`
+| Each seam has invariants defined
+| Info
+
+| `seam-has-components`
+| Both sides of seam have components
+| Warning
+
+| `seam-drift`
+| Interface hasn't changed from baseline
+| Warning/Error (frozen)
+
+| `freeze-stamp-exists`
+| Freeze stamp exists for stage
+| Error
+
+| `freeze-stamp-current`
+| Register matches freeze stamp hash
+| Error
+|===
+
+== Integration
+
+=== CI Integration
+
+[source,yaml]
+----
+# .github/workflows/seam-check.yml
+name: Seam Hygiene
+on: [push, pull_request]
+
+jobs:
+  seambot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install seambot
+      - run: seambot check --format sarif --output results.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+----
+
+=== git-visor Integration
+
+Seambot can be triggered by git-visor on repository events:
+
+[source,json]
+----
+{
+  "hooks": {
+    "post-commit": ["seambot check --format json"],
+    "pre-release": ["seambot check --strict"]
+  }
+}
+----
+
+=== finishbot Integration
+
+Finishbot can use seambot as a gate for release readiness:
+
+[source,json]
+----
+{
+  "gates": {
+    "seam-hygiene": {
+      "command": "seambot check --strict",
+      "required": true
+    }
+  }
+}
+----
+
+== Bot Ecosystem
+
+Seambot is part of the hyperpolymath bot ecosystem:
+
+* **https://github.com/hyperpolymath/echidnabot[echidnabot]** - Repository health monitoring
+* **https://github.com/hyperpolymath/oikos[oikos]** - Ecosystem orchestration
+* **https://github.com/hyperpolymath/rhodibot[rhodibot]** - RSR compliance enforcement
+* **seambot** - Seam hygiene auditing
+* **finishbot** _(planned)_ - Release readiness gating
+
+== Non-Goals (v1)
+
+* No auto-generation of seams
+* No inference of architecture
+* No "AI design suggestions"
+* No cross-language semantic analysis
+* Never mutates code (metadata only, opt-in)
+
+== License
+
+AGPL-3.0-or-later. See link:LICENSE.txt[LICENSE.txt] for details.
