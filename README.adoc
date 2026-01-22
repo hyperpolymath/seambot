@@ -280,4 +280,4 @@ Seambot is part of the hyperpolymath bot ecosystem:
 
 == License
 
-AGPL-3.0-or-later. See link:LICENSE.txt[LICENSE.txt] for details.
+PMPL-1.0-or-later. See link:LICENSE.txt[LICENSE.txt] for details.
