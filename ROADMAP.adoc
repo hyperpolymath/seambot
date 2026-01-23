@@ -1,22 +1,319 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+
 = Seambot Roadmap
 
-== Current Status
+:toc: macro
+:toclevels: 3
+:icons: font
 
-Initial development phase.
+Development roadmap for seambot - Architectural Seam Hygiene Auditor.
 
-== Milestones
+toc::[]
 
-=== v0.1.0 - Foundation
-* [ ] Core functionality
-* [ ] Basic documentation
-* [ ] CI/CD pipeline
+== Vision
 
-=== v1.0.0 - Stable Release
-* [ ] Full feature set
-* [ ] Comprehensive tests
-* [ ] Production ready
+Seambot aims to be the **definitive seam hygiene auditor**, ensuring architectural boundaries remain explicit, stable, and correctly exercised over time.
 
-== Future Directions
+== Current Status (v0.1.0)
 
-_To be determined based on community feedback._
+[cols="1,3,1"]
+|===
+|Feature |Status |Completeness
+
+|**Core Features**
+|
+|
+
+|Register verification
+|✅ Implemented
+|100%
+
+|Conformance checking
+|✅ Implemented
+|100%
+
+|Drift detection
+|✅ Implemented
+|100%
+
+|Freeze stamps
+|✅ Implemented
+|100%
+
+|Hidden channel detection
+|✅ Implemented
+|100%
+
+|**Hidden Channel Types**
+|
+|
+
+|Undeclared imports
+|✅ Implemented
+|100%
+
+|Shared global state
+|✅ Implemented
+|100%
+
+|Filesystem coupling
+|✅ Implemented
+|100%
+
+|Database coupling
+|🚧 Planned
+|0%
+
+|Network coupling
+|🚧 Planned
+|0%
+
+|**Platform Support**
+|
+|
+
+|GitHub integration
+|✅ Full support
+|100%
+
+|GitLab integration
+|✅ Full support
+|100%
+
+|Bitbucket integration
+|✅ Full support
+|100%
+
+|**Output Formats**
+|
+|
+
+|Text
+|✅ Implemented
+|100%
+
+|JSON
+|✅ Implemented
+|100%
+
+|Markdown
+|✅ Implemented
+|100%
+
+|SARIF
+|✅ Implemented
+|100%
+|===
+
+== Near-Term Goals (v0.2.0 - Q1 2026)
+
+=== 1. Advanced Hidden Channel Detection
+
+**Priority: HIGH**
+
+* [ ] Database coupling detection (shared tables, schemas)
+* [ ] Network coupling detection (cross-seam HTTP/gRPC calls)
+* [ ] Environment variable coupling (shared config keys)
+* [ ] Process coupling (IPC, shared memory)
+
+**Why:** Detect all forms of hidden coupling, not just code-level.
+
+**Effort:** 3-4 weeks
+
+=== 2. Seam Visualization
+
+**Priority: MEDIUM**
+
+* [ ] Generate seam dependency graphs (DOT/Mermaid)
+* [ ] Visualize hidden channels in diagrams
+* [ ] Interactive HTML report with clickable seams
+* [ ] Timeline view of seam evolution
+
+**Why:** Make seam architecture easy to understand at a glance.
+
+**Effort:** 2-3 weeks
+
+=== 3. Automated Seam Discovery
+
+**Priority: LOW (Research)
+
+* [ ] Infer potential seams from module boundaries
+* [ ] Suggest seam register entries based on code structure
+* [ ] Detect implicit seams (high coupling without declaration)
+* [ ] Recommend seam types based on patterns
+
+**Why:** Help teams discover their implicit architecture.
+
+**Effort:** 4-5 weeks (research + implementation)
+
+== Mid-Term Goals (v0.3.0 - Q2 2026)
+
+=== 1. Cross-Repo Seam Support
+
+**Priority: HIGH**
+
+* [ ] Detect seams spanning multiple repositories
+* [ ] Validate cross-repo conformance examples
+* [ ] Track cross-repo drift
+* [ ] Coordinate with git-loom for multi-repo management
+
+**Why:** Many architectures span multiple repos.
+
+**Effort:** 3-4 weeks
+
+=== 2. Seam Health Metrics
+
+**Priority: MEDIUM**
+
+* [ ] Coupling score per seam (0-100)
+* [ ] Seam stability index (drift frequency)
+* [ ] Conformance compliance rate
+* [ ] Hidden channel density
+
+**Why:** Quantify seam health and track over time.
+
+**Effort:** 2 weeks
+
+=== 3. Integration with Other Bots
+
+**Priority: HIGH**
+
+* [ ] Coordinate with rhodibot (RSR compliance first)
+* [ ] Share context with finishingbot (seam health prerequisite)
+* [ ] Hypatia orchestration support
+* [ ] Fleet-wide seam dashboard
+
+**Why:** Enable multi-bot workflows for comprehensive quality.
+
+**Effort:** 1-2 weeks
+
+=== 4. Language-Specific Analyzers
+
+**Priority: MEDIUM**
+
+* [ ] Rust module boundaries (mod, pub, crate)
+* [ ] ReScript module system
+* [ ] Java package boundaries
+* [ ] Python module imports
+* [ ] Go package dependencies
+
+**Why:** Better hidden channel detection for specific languages.
+
+**Effort:** 2-3 weeks
+
+== Long-Term Vision (v1.0.0 - Q3-Q4 2026)
+
+=== 1. AI-Powered Seam Analysis
+
+**Priority: RESEARCH**
+
+* [ ] LLM-powered seam description generation
+* [ ] Intelligent invariant suggestion
+* [ ] Natural language seam queries
+* [ ] Automated conformance example generation
+
+**Why:** Make seam management accessible to newcomers.
+
+**Effort:** 4-6 weeks (research + implementation)
+
+=== 2. Architectural Patterns Library
+
+**Priority: MEDIUM**
+
+* [ ] Pre-defined seam patterns (Hexagonal, Onion, Clean)
+* [ ] Pattern validation ("Does this match Hexagonal Architecture?")
+* [ ] Pattern templates for seam registers
+* [ ] Anti-pattern detection
+
+**Why:** Help teams apply proven architectural patterns.
+
+**Effort:** 3-4 weeks
+
+=== 3. Seam Refactoring Assistance
+
+**Priority: LOW (Ambitious)
+
+* [ ] Suggest seam refactorings (split, merge, move)
+* [ ] Estimate refactoring impact
+* [ ] Generate migration guide for seam changes
+* [ ] Safe seam boundary movement
+
+**Why:** Make architectural evolution less risky.
+
+**Effort:** 6-8 weeks
+
+=== 4. Runtime Seam Validation
+
+**Priority: RESEARCH**
+
+* [ ] Runtime instrumentation to detect seam violations
+* [ ] Dynamic hidden channel detection
+* [ ] Performance impact analysis of seam crossings
+* [ ] Integration with observability tools (OpenTelemetry)
+
+**Why:** Validate seams at runtime, not just static analysis.
+
+**Effort:** 8-10 weeks (research + implementation)
+
+== Technical Debt
+
+=== High Priority
+
+* [ ] Performance optimization (parallel seam scanning)
+* [ ] Memory optimization (large monorepo support)
+* [ ] Better error messages (actionable suggestions)
+* [ ] Improve hidden channel detection accuracy
+
+=== Medium Priority
+
+* [ ] Add integration tests for all seam types
+* [ ] Structured logging (filterable, parseable)
+* [ ] Metrics export (Prometheus format)
+* [ ] Configuration validation (catch errors early)
+
+=== Low Priority
+
+* [ ] WASM compilation (run in browser)
+* [ ] Plugin system for custom analyzers
+* [ ] Alternative output formats (HTML, PDF)
+* [ ] Multi-language support (i18n)
+
+== Community Contributions Welcome
+
+We welcome contributions in these areas:
+
+* **Language-specific analyzers** (hidden channel detection for more languages)
+* **Seam pattern libraries** (common architectural patterns)
+* **Platform adapters** (Gitea, Codeberg, SourceHut)
+* **Visualization tools** (better seam diagrams)
+* **Documentation** (tutorials, examples, case studies)
+
+See link:CONTRIBUTING.md[CONTRIBUTING.md] for guidelines.
+
+== Non-Goals
+
+Seambot will NOT:
+
+* Auto-generate seam definitions (human judgment required)
+* Infer architecture from code (explicit is better than implicit)
+* Provide "AI design suggestions" (governance, not design)
+* Perform cross-language semantic analysis (relies on declared boundaries)
+* Mutate code (read-only auditor)
+
+== Versioning
+
+Seambot follows semantic versioning:
+
+* **v0.x.y** - Pre-1.0, breaking changes allowed between minor versions
+* **v1.x.y** - Stable API, breaking changes only in major versions
+* **vX.0.0** - Major release with new features and possible breaking changes
+
+== Release Cadence
+
+* **Patch releases** (v0.1.x) - Weekly or as needed for bug fixes
+* **Minor releases** (v0.x.0) - Monthly with new features
+* **Major releases** (v1.0.0+) - When stable API is ready (Q4 2026 target)
+
+== Feedback
+
+Have suggestions for the roadmap? Open an issue or discussion on GitHub!
