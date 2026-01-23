@@ -1,33 +1,30 @@
-image:[License,link="https://github.com/hyperpolymath/palimpsest-license"]
+image:https://img.shields.io/badge/License-PMPL_1.0_or_later-blue.svg[PMPL-1.0-or-later,link="https://github.com/hyperpolymath/palimpsest-license"]
+image:https://img.shields.io/github/license/hyperpolymath/seambot[License]
+image:https://img.shields.io/crates/v/seambot[Crates.io]
 
-// SPDX-License-Identifier: PMPL-1.0
-// SPDX-FileCopyrightText: 2025 Jonathan D.A. Jewell
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
-
-// SPDX-License-Identifier: PMPL-1.0
-
-= Seambot
+= Seambot: Architectural Seam Hygiene Auditor
 
 :toc: macro
 :toclevels: 3
 :icons: font
+:source-highlighter: pygments
 
 Seam hygiene auditor - tracks, enforces, and detects drift in architectural boundaries.
-
-image:https://img.shields.io/github/license/hyperpolymath/seambot[License]
-image:https://img.shields.io/crates/v/seambot[Crates.io]
 
 toc::[]
 
 == Overview
 
-Seambot is a governor and auditor, not a designer. It ensures that declared seams
-remain explicit, stable, and correctly exercised over time.
+Seambot is a **governor and auditor**, not a designer. It ensures that declared seams remain explicit, stable, and correctly exercised over time.
+
+[quote]
+"If finishbot tells us whether a repo is ready to release, seambot tells us whether it is still the same system we thought we built."
 
 === What are Seams?
 
-Seams are first-class architectural artifacts representing boundaries between components.
-They are not incidental - they are deliberate design decisions that encode:
+Seams are first-class architectural artifacts representing boundaries between components. They are not incidental - they are deliberate design decisions that encode:
 
 * **Invariants**: Rules that must hold across the boundary
 * **Interfaces**: Contracts between components
@@ -35,28 +32,32 @@ They are not incidental - they are deliberate design decisions that encode:
 
 === Philosophy
 
-[quote]
-"If finishbot tells us whether a repo is ready to release, seambot tells us whether it is still the same system we thought we built."
+Seambot treats architectural boundaries as **first-class citizens** that deserve the same rigorous tracking as:
 
-== Features
+* Dependencies (tracked by package managers)
+* Types (tracked by type checkers)
+* Tests (tracked by test frameworks)
 
-* **Register Verification** - Validates seam register completeness
-* **Conformance Checking** - Ensures examples exist and are valid
-* **Drift Detection** - Detects changes to seam interfaces
-* **Freeze Stamps** - Validates stage freezes include seam state
-* **Hidden Channel Detection** - Basic heuristics for finding implicit dependencies
-* **Multiple Output Formats** - Text, JSON, Markdown, SARIF
+But while these tools track code-level artifacts, seambot tracks **conceptual boundaries** that shape the system's structure.
+
+== Key Features
+
+* **Register Verification** - Validates seam register completeness and consistency
+* **Conformance Checking** - Ensures examples exist and demonstrate correct usage
+* **Drift Detection** - Detects changes to seam interfaces over time
+* **Freeze Stamps** - Validates stage freezes include immutable seam state
+* **Hidden Channel Detection** - Finds undeclared coupling across seam boundaries:
+  ** Undeclared imports between seams
+  ** Shared global state
+  ** Filesystem coupling (shared files/directories)
+  ** Database coupling (shared tables/schemas)
+  ** Network calls crossing boundaries (planned)
+* **Multi-Forge Support** - Works with GitHub, GitLab, and Bitbucket
+* **Multiple Output Formats** - Text, JSON, Markdown, SARIF for CI integration
 
 == Installation
 
-=== From crates.io
-
-[source,bash]
-----
-cargo install seambot
-----
-
-=== From source
+=== From Source
 
 [source,bash]
 ----
@@ -72,60 +73,140 @@ cargo build --release
 [source,bash]
 ----
 seambot init
+seambot init --force  # Overwrite existing files
 ----
 
 This creates:
 
 * `spec/seams/seam-register.json` - Machine-readable seam index
 * `spec/seams/seam-register.adoc` - Human-readable documentation
-* `spec/seams/checklists/` - Seam checklists
-* `spec/seams/conformance/` - Conformance examples
-* `spec/seams/freeze-stamps/` - Stage freeze stamps
+* `spec/seams/checklists/` - Seam implementation checklists
+* `spec/seams/conformance/` - Conformance examples (correct usage)
+* `spec/seams/freeze-stamps/` - Immutable stage freeze stamps
 
 === Run All Checks
 
 [source,bash]
 ----
+# Run all seam hygiene checks
 seambot check
-seambot check --strict  # Fail on warnings
+
+# Fail on warnings (strict mode for CI)
+seambot check --strict
+
+# Output to JSON file
 seambot check --format json --output report.json
 ----
 
 === Check Register Completeness
 
+Validates that the seam register is complete and well-formed:
+
 [source,bash]
 ----
 seambot register
+
+# Use a custom register path
+seambot register --register path/to/seam-register.json
 ----
 
-=== Check for Drift
+=== Detect Hidden Channels
+
+Find undeclared coupling between seams:
 
 [source,bash]
 ----
+# Scan for hidden channels across all seams
+seambot hidden-channels
+
+# Save results to file
+seambot hidden-channels --output hidden-channels.json
+----
+
+Hidden channel types detected:
+
+* **Undeclared imports** - Module imports crossing seam boundaries without declaration
+* **Global state** - Shared mutable state accessed by multiple seams
+* **Filesystem coupling** - Multiple seams reading/writing the same files
+* **Database coupling** - Shared database tables/schemas (planned)
+* **Network coupling** - Cross-seam network calls (planned)
+
+=== Check for Drift
+
+Detect changes to seam interfaces since the last baseline:
+
+[source,bash]
+----
+# Check for drift against baseline
 seambot drift
-seambot drift --update-baseline  # Update baseline after review
+
+# Compare against specific baseline file
+seambot drift --baseline path/to/baseline.json
+
+# Update baseline after reviewing changes
+seambot drift --update-baseline
 ----
 
 === Validate Conformance Examples
 
+Ensure conformance examples exist and are valid:
+
 [source,bash]
 ----
+# Check all seams
 seambot conformance
-seambot conformance --seam specific-seam-id
+
+# Check specific seam
+seambot conformance --seam api-domain
 ----
 
 === Check Freeze Stamp
 
+Validate that a stage freeze has a corresponding seam freeze stamp:
+
 [source,bash]
 ----
+# Check freeze stamp for stage f1
 seambot freeze-check --stage f1
+
+# Freeze stamps ensure seam state is immutable at release boundaries
 ----
 
 === Generate Report
 
+Generate a comprehensive seam status report:
+
 [source,bash]
 ----
+# Generate markdown report
 seambot report --format markdown --output SEAM-STATUS.md
+
+# Generate full detailed report
+seambot report --full --output full-report.md
+----
+
+=== GitHub App Integration
+
+Seambot can run as a GitHub App to post seam check results:
+
+[source,bash]
+----
+seambot github check-run \
+  --owner hyperpolymath \
+  --repo myrepo \
+  --sha abc123 \
+  --app-id 123456 \
+  --private-key /path/to/key.pem \
+  --installation-id 789
+
+# Post PR comment with seam check results
+seambot github pr-comment \
+  --owner hyperpolymath \
+  --repo myrepo \
+  --pr 42 \
+  --app-id 123456 \
+  --private-key /path/to/key.pem \
+  --installation-id 789
 ----
 
 == Seam Register Format
@@ -143,6 +224,8 @@ seambot report --format markdown --output SEAM-STATUS.md
       "side_a": ["api"],
       "side_b": ["domain"],
       "seam_type": "layer",
+      "boundary_path": "src/api",
+      "declared_dependencies": ["domain"],
       "invariants": [
         {
           "id": "no-http-in-domain",
@@ -151,133 +234,243 @@ seambot report --format markdown --output SEAM-STATUS.md
           "severity": "error"
         }
       ],
+      "introduced_at": "i1",
       "frozen": false,
       "ring": 0,
       "checklist_path": "spec/seams/checklists/api-domain.adoc",
       "conformance_paths": ["spec/seams/conformance/api-domain.adoc"]
     }
-  ]
+  ],
+  "cross_repo_seams": [],
+  "metadata": {
+    "updated_at": "2025-01-23T12:00:00Z",
+    "updated_by": "seambot init",
+    "commit_hash": "abc123"
+  }
 }
 ----
 
-== MVP Checks (v0.1)
+== Seam Types
 
-[cols="1,2,1"]
 |===
-| Check | Description | Severity
+| Type | Description | Example
+
+| `module`
+| Between modules within a repo
+| `api` ↔ `domain`
+
+| `service`
+| Between services/repos
+| `auth-service` ↔ `user-service`
+
+| `layer`
+| Between architectural layers
+| `presentation` ↔ `business` ↔ `data`
+
+| `data`
+| Data flow boundary
+| `external-api` ↔ `internal-storage`
+
+| `api`
+| API boundary
+| `public-api` ↔ `internal-impl`
+
+| `build`
+| Build/deployment boundary
+| `library` ↔ `application`
+
+| `cross_repo`
+| Managed by git-loom
+| Seams spanning multiple repositories
+|===
+
+== Checks Reference
+
+[cols="1,2,1,1"]
+|===
+| Check | Description | Severity | Auto-Fix
 
 | `register-exists`
 | Seam register file exists
 | Error
+| Yes (init)
 
 | `seam-has-checklist`
 | Each seam has a checklist defined
 | Warning
+| No
 
 | `checklist-exists`
 | Checklist file exists at declared path
 | Error
+| No
 
 | `seam-has-conformance`
 | Each seam has conformance examples
 | Warning
+| No
 
 | `conformance-exists`
 | Conformance files exist at declared paths
 | Error
+| No
 
 | `seam-has-invariants`
 | Each seam has invariants defined
 | Info
+| No
 
 | `seam-has-components`
 | Both sides of seam have components
 | Warning
+| No
 
 | `seam-drift`
 | Interface hasn't changed from baseline
-| Warning/Error (frozen)
+| Warning/Error
+| No
 
 | `freeze-stamp-exists`
 | Freeze stamp exists for stage
 | Error
+| No
 
 | `freeze-stamp-current`
 | Register matches freeze stamp hash
 | Error
+| No
+
+| `no-hidden-channels`
+| No undeclared coupling exists
+| Critical/High
+| No
 |===
 
-== Integration
+== CI Integration
 
-=== CI Integration
+=== GitHub Actions
 
 [source,yaml]
 ----
 # .github/workflows/seam-check.yml
+# SPDX-License-Identifier: AGPL-3.0-or-later
 name: Seam Hygiene
 on: [push, pull_request]
+permissions: read-all
 
 jobs:
   seambot:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install seambot
       - run: seambot check --format sarif --output results.sarif
       - uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
           sarif_file: results.sarif
 ----
 
-=== git-visor Integration
+=== GitLab CI
 
-Seambot can be triggered by git-visor on repository events:
-
-[source,json]
+[source,yaml]
 ----
-{
-  "hooks": {
-    "post-commit": ["seambot check --format json"],
-    "pre-release": ["seambot check --strict"]
-  }
-}
-----
-
-=== finishbot Integration
-
-Finishbot can use seambot as a gate for release readiness:
-
-[source,json]
-----
-{
-  "gates": {
-    "seam-hygiene": {
-      "command": "seambot check --strict",
-      "required": true
-    }
-  }
-}
+seam-hygiene:
+  stage: test
+  script:
+    - cargo install seambot
+    - seambot check --format json --output seam-report.json
+  artifacts:
+    reports:
+      junit: seam-report.json
+    paths:
+      - seam-report.json
 ----
 
-== Bot Ecosystem
+== Integration with Gitbot Fleet
 
-Seambot is part of the hyperpolymath bot ecosystem:
+Seambot is part of the https://github.com/hyperpolymath/gitbot-fleet[Gitbot Fleet], coordinating with:
 
-* **https://github.com/hyperpolymath/echidnabot[echidnabot]** - Repository health monitoring
-* **https://github.com/hyperpolymath/oikos[oikos]** - Ecosystem orchestration
-* **https://github.com/hyperpolymath/rhodibot[rhodibot]** - RSR compliance enforcement
-* **seambot** - Seam hygiene auditing
-* **finishbot** _(planned)_ - Release readiness gating
+* **https://github.com/hyperpolymath/rhodibot[rhodibot]** - RSR structural compliance
+* **https://github.com/hyperpolymath/echidnabot[echidnabot]** - Formal verification
+* **https://github.com/hyperpolymath/finishingbot[finishingbot]** - Release readiness gating
+* **seambot** (this bot) - Architectural seam hygiene
+* **glambot** - Presentation quality (WCAG, SEO)
 
-== Non-Goals (v1)
+Bots share context through a unified layer and can be orchestrated by https://github.com/hyperpolymath/hypatia[hypatia].
 
-* No auto-generation of seams
-* No inference of architecture
-* No "AI design suggestions"
-* No cross-language semantic analysis
-* Never mutates code (metadata only, opt-in)
+== Multi-Forge Support
+
+Seambot works with multiple platforms:
+
+* **GitHub** - Full support (check runs, PR comments, issues)
+* **GitLab** - Full support (commit statuses, MR notes, issues)
+* **Bitbucket** - Full support (build statuses, PR comments, issues)
+
+Set forge credentials via environment variables:
+
+[source,bash]
+----
+export GITHUB_TOKEN=ghp_...
+export GITLAB_TOKEN=glpat-...
+export BITBUCKET_TOKEN=...
+----
+
+== Development
+
+=== Prerequisites
+
+* Rust 1.75+
+* cargo
+
+=== Building
+
+[source,bash]
+----
+cargo build
+----
+
+=== Testing
+
+[source,bash]
+----
+cargo test
+----
+
+=== Architecture
+
+Key modules:
+
+* `src/seam.rs` - Core data structures (Seam, CheckResult, Finding)
+* `src/register.rs` - Seam register initialization and loading
+* `src/checks.rs` - Compliance checking logic
+* `src/hidden_channels.rs` - Hidden channel detection (imports, global state, filesystem)
+* `src/forge/` - Multi-forge abstraction layer
+** `src/forge/github.rs` - GitHub API client
+** `src/forge/gitlab.rs` - GitLab API client
+** `src/forge/bitbucket.rs` - Bitbucket API client
+
+== Non-Goals
+
+Seambot intentionally does NOT:
+
+* Auto-generate seam definitions (human judgment required)
+* Infer architecture from code (explicit is better than implicit)
+* Provide "AI design suggestions" (governance, not design)
+* Perform cross-language semantic analysis (relies on declared boundaries)
+* Mutate code (read-only auditor)
 
 == License
 
-PMPL-1.0-or-later. See link:LICENSE.txt[LICENSE.txt] for details.
+This project is licensed under AGPL-3.0-or-later.
+
+See link:LICENSE[LICENSE] for details.
+
+== Contributing
+
+Contributions are welcome! Please see link:CONTRIBUTING.md[CONTRIBUTING.md] for guidelines.
+
+== Security
+
+For security issues, please see link:SECURITY.md[SECURITY.md].
