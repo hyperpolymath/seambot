@@ -43,6 +43,14 @@ pub struct Seam {
 
     /// Paths to conformance examples
     pub conformance_paths: Vec<String>,
+
+    /// Path to the boundary (directory or module path)
+    #[serde(default)]
+    pub boundary_path: String,
+
+    /// Declared dependencies on other seams (by name)
+    #[serde(default)]
+    pub declared_dependencies: Vec<String>,
 }
 
 /// Types of seams

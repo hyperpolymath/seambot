@@ -11,6 +11,15 @@ use crate::seam::{
     Invariant, RegisterMetadata, Seam, SeamRegister, SeamType, Severity, VerificationType,
 };
 
+/// Load seam register from a JSON file (synchronous)
+pub fn load_register(path: &Path) -> Result<SeamRegister> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read seam register from {}", path.display()))?;
+    let register: SeamRegister = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse seam register from {}", path.display()))?;
+    Ok(register)
+}
+
 /// Initialize seam infrastructure in a repository
 pub async fn init_seam_infrastructure(repo_path: &Path, force: bool) -> Result<()> {
     let seams_dir = repo_path.join("spec/seams");
@@ -103,6 +112,8 @@ fn create_example_register(repo_path: &Path) -> SeamRegister {
                 conformance_paths: vec![
                     "spec/seams/conformance/example-seam-conformance.adoc".to_string(),
                 ],
+                boundary_path: "src/module-a".to_string(),
+                declared_dependencies: vec![],
             },
         ],
         cross_repo_seams: Vec::new(),

@@ -36,9 +36,11 @@ anyhow = "1"
 
 # Async runtime (for future integrations)
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+async-trait = "0.1"
 
 # HTTP client (for webhook/CI integration)
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+urlencoding = "2"
 
 # Hashing for drift detection
 sha2 = "0.10"

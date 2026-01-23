@@ -13,10 +13,12 @@ use std::path::PathBuf;
 use tracing::info;
 
 mod checks;
+mod forge;
 mod github;
+mod hidden_channels;
+mod register;
 mod report;
 mod seam;
-mod register;
 
 use github::{GitHubAppConfig, GitHubClient};
 use report::{OutputFormat, Reporter};
@@ -103,6 +105,13 @@ enum Commands {
         /// Stage identifier (e.g., f1, f2)
         #[arg(long)]
         stage: String,
+    },
+
+    /// Detect hidden channels across seam boundaries
+    HiddenChannels {
+        /// Output file
+        #[arg(short, long)]
+        output: Option<PathBuf>,
     },
 
     /// GitHub App integration commands
@@ -278,6 +287,49 @@ async fn main() -> Result<()> {
             reporter.output(&result, None)?;
 
             if result.has_errors() {
+                std::process::exit(1);
+            }
+        }
+
+        Commands::HiddenChannels { output } => {
+            // Load seam register
+            let register_path = repo_path.join("spec/seams/seam-register.json");
+            let register = register::load_register(&register_path)?;
+
+            // Detect hidden channels
+            let channels = hidden_channels::detect_hidden_channels(&register, &repo_path)?;
+
+            // Format output
+            if channels.is_empty() {
+                info!("No hidden channels detected");
+            } else {
+                println!("Found {} hidden channels:\n", channels.len());
+                for channel in &channels {
+                    let severity = match channel.severity {
+                        hidden_channels::Severity::Critical => "CRITICAL",
+                        hidden_channels::Severity::High => "HIGH",
+                        hidden_channels::Severity::Medium => "MEDIUM",
+                        hidden_channels::Severity::Low => "LOW",
+                    };
+                    let channel_type = match channel.channel_type {
+                        hidden_channels::ChannelType::UndeclaredImport => "Undeclared Import",
+                        hidden_channels::ChannelType::GlobalState => "Global State",
+                        hidden_channels::ChannelType::FilesystemCoupling => "Filesystem Coupling",
+                        hidden_channels::ChannelType::DatabaseCoupling => "Database Coupling",
+                        hidden_channels::ChannelType::NetworkCoupling => "Network Coupling",
+                    };
+                    println!("[{}] {}: {} -> {}",
+                        severity, channel_type, channel.source_seam, channel.target_seam);
+                    println!("  Evidence: {}\n", channel.evidence);
+                }
+
+                // Save to file if requested
+                if let Some(output_path) = output {
+                    let json = serde_json::to_string_pretty(&channels)?;
+                    std::fs::write(&output_path, json)?;
+                    info!("Saved report to {}", output_path.display());
+                }
+
                 std::process::exit(1);
             }
         }
