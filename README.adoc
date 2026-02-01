@@ -1,8 +1,8 @@
-image:https://img.shields.io/badge/License-PMPL_1.0_or_later-blue.svg[PMPL-1.0-or-later,link="https://github.com/hyperpolymath/palimpsest-license"]
+image:https://img.shields.io/badge/License-PMPL--1.0-blue.svg[License: PMPL-1.0,link="https://github.com/hyperpolymath/palimpsest-license"]
 image:https://img.shields.io/github/license/hyperpolymath/seambot[License]
 image:https://img.shields.io/crates/v/seambot[Crates.io]
 
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: PMPL-1.0-or-later
 
 = Seambot: Architectural Seam Hygiene Auditor
 
@@ -353,7 +353,7 @@ seambot github pr-comment \
 [source,yaml]
 ----
 # .github/workflows/seam-check.yml
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: PMPL-1.0-or-later
 name: Seam Hygiene
 on: [push, pull_request]
 permissions: read-all
