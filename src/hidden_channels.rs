@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: PMPL-1.0-or-later
 
 //! Hidden channel detection for seam boundaries
 //!
@@ -287,27 +287,357 @@ fn detect_filesystem_coupling(
 }
 
 /// Detect database coupling between seams
+///
+/// Scans source files for SQL table references, ORM model usage, and
+/// shared database connection patterns. When multiple seams access the
+/// same table or database resource, this indicates undeclared coupling.
 fn detect_database_coupling(
-    _register: &SeamRegister,
-    _repo_path: &Path,
+    register: &SeamRegister,
+    repo_path: &Path,
 ) -> Result<Vec<HiddenChannel>> {
-    // TODO: Detect shared database access
-    // - SQL table names in queries
-    // - ORM model references
-    // - Migration files
-    Ok(Vec::new())
+    let mut channels = Vec::new();
+    let file_seam_map = build_file_seam_map(register, repo_path);
+
+    // SQL patterns that reference table names
+    let sql_table_re = regex::Regex::new(
+        r"(?i)(?:FROM|INTO|UPDATE|JOIN|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|INSERT\s+INTO|DELETE\s+FROM)\s+[`\x22]?(\w+)"
+    )?;
+
+    // ORM patterns indicating model/table binding
+    let orm_patterns = [
+        "diesel::table!",
+        "sqlx::query",
+        "sea_orm::Entity",
+        "#[table_name",
+        "ActiveModel",
+        "Schema::create_table",
+        "migration::Migration",
+        "models.Model",
+        "Base.metadata",
+        "sequelize.define",
+        "mongoose.model",
+        "Ecto.Schema",
+        "has_many",
+        "belongs_to",
+    ];
+
+    // Connection string env vars indicating shared database
+    let db_env_patterns = [
+        "DATABASE_URL",
+        "DB_HOST",
+        "DB_NAME",
+        "MONGO_URI",
+        "REDIS_URL",
+        "POSTGRES_",
+        "MYSQL_",
+    ];
+
+    // Map: table/model name → set of seams that reference it
+    let mut table_seam_map: HashMap<String, HashSet<String>> = HashMap::new();
+    // Map: db env var → set of seams that reference it
+    let mut db_env_seam_map: HashMap<String, HashSet<String>> = HashMap::new();
+
+    for entry in WalkDir::new(repo_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| !is_ignored(e.file_name().to_str().unwrap_or("")))
+        .filter_map(|e| e.ok())
+    {
+        let entry_path = entry.path();
+
+        if !is_source_file(entry_path) {
+            continue;
+        }
+
+        if let Some(seam_name) = file_seam_map.get(entry_path) {
+            if let Ok(content) = std::fs::read_to_string(entry_path) {
+                // Extract SQL table names
+                for caps in sql_table_re.captures_iter(&content) {
+                    if let Some(table_name) = caps.get(1) {
+                        let name = table_name.as_str().to_lowercase();
+                        // Skip common SQL keywords that might match
+                        if !matches!(name.as_str(), "set" | "where" | "values" | "select" | "as" | "on") {
+                            table_seam_map
+                                .entry(name)
+                                .or_default()
+                                .insert(seam_name.clone());
+                        }
+                    }
+                }
+
+                // Check for ORM patterns
+                for pattern in &orm_patterns {
+                    for line in content.lines() {
+                        if line.contains(pattern) {
+                            let model_name = extract_var_name(line);
+                            if !model_name.is_empty() {
+                                table_seam_map
+                                    .entry(model_name)
+                                    .or_default()
+                                    .insert(seam_name.clone());
+                            }
+                        }
+                    }
+                }
+
+                // Check for shared database connection env vars
+                for pattern in &db_env_patterns {
+                    if content.contains(pattern) {
+                        db_env_seam_map
+                            .entry(pattern.to_string())
+                            .or_default()
+                            .insert(seam_name.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // Also check migration directories for shared ownership
+    let migration_dirs = ["migrations", "db/migrate", "alembic", "priv/repo/migrations"];
+    for dir_name in &migration_dirs {
+        let migration_path = repo_path.join(dir_name);
+        if migration_path.exists() {
+            // Check which seams have migration files
+            for entry in WalkDir::new(&migration_path)
+                .max_depth(2)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.path().is_file() {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        for caps in sql_table_re.captures_iter(&content) {
+                            if let Some(table_name) = caps.get(1) {
+                                let name = table_name.as_str().to_lowercase();
+                                if !matches!(name.as_str(), "set" | "where" | "values" | "select" | "as" | "on") {
+                                    table_seam_map
+                                        .entry(name)
+                                        .or_default()
+                                        .insert(format!("migration:{}", dir_name));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Flag tables accessed by multiple seams
+    for (table_name, seams) in &table_seam_map {
+        if seams.len() > 1 {
+            let seams_vec: Vec<_> = seams.iter().cloned().collect();
+            for i in 0..seams_vec.len() {
+                for j in (i + 1)..seams_vec.len() {
+                    channels.push(HiddenChannel::new(
+                        ChannelType::DatabaseCoupling,
+                        &seams_vec[i],
+                        &seams_vec[j],
+                        format!("Shared database table: {}", table_name),
+                        Severity::High,
+                    ));
+                }
+            }
+        }
+    }
+
+    // Flag shared database env vars across seams
+    for (env_var, seams) in &db_env_seam_map {
+        if seams.len() > 1 {
+            let seams_vec: Vec<_> = seams.iter().cloned().collect();
+            for i in 0..seams_vec.len() {
+                for j in (i + 1)..seams_vec.len() {
+                    channels.push(HiddenChannel::new(
+                        ChannelType::DatabaseCoupling,
+                        &seams_vec[i],
+                        &seams_vec[j],
+                        format!("Shared database connection via {}", env_var),
+                        Severity::Medium,
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(channels)
 }
 
 /// Detect network coupling between seams
+///
+/// Scans source files for HTTP client calls, gRPC references, WebSocket
+/// connections, and service endpoint patterns. When multiple seams communicate
+/// over the network without declared interfaces, this indicates hidden coupling.
 fn detect_network_coupling(
-    _register: &SeamRegister,
-    _repo_path: &Path,
+    register: &SeamRegister,
+    repo_path: &Path,
 ) -> Result<Vec<HiddenChannel>> {
-    // TODO: Detect network calls crossing seam boundaries
-    // - HTTP client calls
-    // - gRPC calls
-    // - WebSocket connections
-    Ok(Vec::new())
+    let mut channels = Vec::new();
+    let file_seam_map = build_file_seam_map(register, repo_path);
+
+    // HTTP client patterns by language
+    let http_patterns = [
+        // Rust
+        "reqwest::", "hyper::", "surf::", "ureq::", "isahc::",
+        "http::Request", "http::Client",
+        // JavaScript/TypeScript
+        "fetch(", "axios.", "http.request", "https.request",
+        "XMLHttpRequest",
+        // Python
+        "requests.", "urllib.", "aiohttp.", "httpx.",
+    ];
+
+    // gRPC / protocol buffer patterns
+    let grpc_patterns = [
+        "tonic::", "grpc.", "grpcio.", "proto::",
+        ".proto", "protobuf::", "prost::",
+    ];
+
+    // WebSocket patterns
+    let ws_patterns = [
+        "WebSocket", "ws://", "wss://",
+        "tokio_tungstenite", "async_tungstenite",
+        "websocket::", "socket.io",
+    ];
+
+    // URL/endpoint patterns
+    let url_re = regex::Regex::new(
+        r#"(?:https?://|localhost:)\S+"#
+    )?;
+
+    // Service endpoint env var patterns
+    let endpoint_env_patterns = [
+        "_URL", "_ENDPOINT", "_HOST", "_PORT",
+        "_API_BASE", "_SERVICE_ADDR", "_GRPC_ADDR",
+    ];
+
+    // Map: endpoint/URL → set of seams that reference it
+    let mut endpoint_seam_map: HashMap<String, HashSet<String>> = HashMap::new();
+    // Map: protocol type → set of seams using it
+    let mut protocol_seam_map: HashMap<String, HashSet<String>> = HashMap::new();
+
+    for entry in WalkDir::new(repo_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| !is_ignored(e.file_name().to_str().unwrap_or("")))
+        .filter_map(|e| e.ok())
+    {
+        let entry_path = entry.path();
+
+        if !is_source_file(entry_path) {
+            continue;
+        }
+
+        if let Some(seam_name) = file_seam_map.get(entry_path) {
+            if let Ok(content) = std::fs::read_to_string(entry_path) {
+                // Check for HTTP client usage
+                for pattern in &http_patterns {
+                    if content.contains(pattern) {
+                        protocol_seam_map
+                            .entry("http".to_string())
+                            .or_default()
+                            .insert(seam_name.clone());
+                    }
+                }
+
+                // Check for gRPC usage
+                for pattern in &grpc_patterns {
+                    if content.contains(pattern) {
+                        protocol_seam_map
+                            .entry("grpc".to_string())
+                            .or_default()
+                            .insert(seam_name.clone());
+                    }
+                }
+
+                // Check for WebSocket usage
+                for pattern in &ws_patterns {
+                    if content.contains(pattern) {
+                        protocol_seam_map
+                            .entry("websocket".to_string())
+                            .or_default()
+                            .insert(seam_name.clone());
+                    }
+                }
+
+                // Extract URL literals
+                for caps in url_re.find_iter(&content) {
+                    let url = caps.as_str();
+                    // Normalize: strip trailing punctuation and quotes
+                    let url_clean = url.trim_end_matches(|c: char| {
+                        c == '"' || c == '\'' || c == ')' || c == ';' || c == ',' || c == '>'
+                    });
+                    endpoint_seam_map
+                        .entry(url_clean.to_string())
+                        .or_default()
+                        .insert(seam_name.clone());
+                }
+
+                // Check for service endpoint env vars
+                for line in content.lines() {
+                    for pattern in &endpoint_env_patterns {
+                        if line.contains(pattern) {
+                            // Extract the env var name
+                            let trimmed = line.trim();
+                            let env_key = trimmed
+                                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                                .find(|word| word.ends_with(pattern))
+                                .unwrap_or(pattern)
+                                .to_string();
+                            if !env_key.is_empty() {
+                                endpoint_seam_map
+                                    .entry(env_key)
+                                    .or_default()
+                                    .insert(seam_name.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Flag endpoints accessed by multiple seams
+    for (endpoint, seams) in &endpoint_seam_map {
+        if seams.len() > 1 {
+            let seams_vec: Vec<_> = seams.iter().cloned().collect();
+            for i in 0..seams_vec.len() {
+                for j in (i + 1)..seams_vec.len() {
+                    channels.push(HiddenChannel::new(
+                        ChannelType::NetworkCoupling,
+                        &seams_vec[i],
+                        &seams_vec[j],
+                        format!("Shared network endpoint: {}", endpoint),
+                        Severity::Medium,
+                    ));
+                }
+            }
+        }
+    }
+
+    // Flag cross-seam network protocol usage (seams communicating over network)
+    for (protocol, seams) in &protocol_seam_map {
+        if seams.len() > 1 {
+            let seams_vec: Vec<_> = seams.iter().cloned().collect();
+            for i in 0..seams_vec.len() {
+                for j in (i + 1)..seams_vec.len() {
+                    // Only flag if the seams are NOT declared as having a network dependency
+                    if !is_declared_dependency(register, &seams_vec[i], &seams_vec[j])
+                        && !is_declared_dependency(register, &seams_vec[j], &seams_vec[i])
+                    {
+                        channels.push(HiddenChannel::new(
+                            ChannelType::NetworkCoupling,
+                            &seams_vec[i],
+                            &seams_vec[j],
+                            format!("Undeclared {} communication between seams", protocol),
+                            Severity::High,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(channels)
 }
 
 // Helper functions

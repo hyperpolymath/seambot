@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: PMPL-1.0-or-later
 # Vordr - The Guardian
 # Norse mythology: watcher/guardian
 # Purpose: Seam hygiene and architectural boundary monitoring

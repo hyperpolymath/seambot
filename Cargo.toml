@@ -4,9 +4,9 @@
 name = "seambot"
 version = "0.1.0"
 edition = "2021"
-authors = ["hyperpolymath <hyperpolymath@users.noreply.github.com>"]
+authors = ["Jonathan D.A. Jewell <jonathan.jewell@open.ac.uk>"]
 description = "Seam hygiene auditor - tracks, enforces, and detects drift in architectural boundaries"
-license = "AGPL-3.0-or-later"
+license = "PMPL-1.0-or-later"
 repository = "https://github.com/hyperpolymath/seambot"
 homepage = "https://github.com/hyperpolymath/seambot"
 keywords = ["architecture", "seams", "boundaries", "audit", "ci"]

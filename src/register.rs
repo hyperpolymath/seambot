@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: PMPL-1.0-or-later
 
 //! Seam register initialization and management
 
@@ -126,7 +126,7 @@ fn create_example_register(repo_path: &Path) -> SeamRegister {
 }
 
 fn create_register_adoc() -> String {
-    r#"// SPDX-License-Identifier: AGPL-3.0-or-later
+    r#"// SPDX-License-Identifier: PMPL-1.0-or-later
 = Seam Register
 :toc: macro
 :toclevels: 3
@@ -195,7 +195,7 @@ Reference them in `cross_repo_seams` section of the register.
 }
 
 fn create_example_checklist() -> String {
-    r#"// SPDX-License-Identifier: AGPL-3.0-or-later
+    r#"// SPDX-License-Identifier: PMPL-1.0-or-later
 = Seam Checklist: Example Seam
 :checklist:
 
@@ -228,7 +228,7 @@ fn create_example_checklist() -> String {
 }
 
 fn create_example_conformance() -> String {
-    r#"// SPDX-License-Identifier: AGPL-3.0-or-later
+    r#"// SPDX-License-Identifier: PMPL-1.0-or-later
 = Conformance Example: Example Seam
 
 == Purpose
