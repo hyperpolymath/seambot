@@ -64,6 +64,9 @@ rsa = { version = "0.9", features = ["pem"] }
 # HMAC-SHA256 for webhook signature verification
 hmac-sha256 = "1"
 
+# Fleet integration
+gitbot-shared-context = { path = "../gitbot-fleet/shared-context" }
+
 # AsciiDoc parsing (basic)
 # Note: Full AsciiDoc parsing would need asciidoctor via subprocess
 

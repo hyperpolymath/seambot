@@ -26,7 +26,7 @@
 
   (current-position
     (phase "active-development")
-    (overall-completion 60)
+    (overall-completion 85)
     (components
       (("Seam Register" . ((status . "complete") (completion . 100)
          (description . "JSON-based seam register format defining architectural boundaries")))
@@ -38,10 +38,9 @@
          (description . "Detects changes to seam interfaces since baseline freeze stamps")))
        ("Freeze Stamps" . ((status . "complete") (completion . 100)
          (description . "Immutable seam state snapshots at release points")))
-       ("Hidden Channel Detection" . ((status . "partial") (completion . 60)
+       ("Hidden Channel Detection" . ((status . "complete") (completion . 100)
          (description . "Detects undeclared coupling across boundaries")
-         (implemented . ("Undeclared imports" "Shared global state" "Filesystem coupling"))
-         (planned . ("Database coupling" "Network calls" "Environment variables"))))
+         (implemented . ("Undeclared imports" "Shared global state" "Filesystem coupling" "Database coupling" "Network calls" "Environment variables"))))
        ("Multi-Forge Support" . ((status . "complete") (completion . 100)
          (description . "GitHub, GitLab, Bitbucket webhook integration")))
        ("Output Formats" . ((status . "complete") (completion . 100)
@@ -79,15 +78,15 @@
          ("CLI interface" . done)))
 
       ((name "Hidden Channel Detection")
-       (status "in-progress")
-       (completion 60)
+       (status "complete")
+       (completion 100)
        (items
          ("Import analysis" . done)
          ("Global state detection" . done)
          ("Filesystem coupling" . done)
-         ("Database coupling" . todo)
-         ("Network call detection" . todo)
-         ("Environment variable leakage" . todo)))
+         ("Database coupling" . done)
+         ("Network call detection" . done)
+         ("Environment variable leakage" . done)))
 
       ((name "Forge Integration")
        (status "in-progress")
@@ -100,11 +99,11 @@
          ("Check runs on PRs" . in-progress)))
 
       ((name "Fleet Integration & Release")
-       (status "planned")
-       (completion 0)
+       (status "in-progress")
+       (completion 60)
        (items
-         ("Gitbot-fleet shared-context integration" . todo)
-         ("Finding format standardization" . todo)
+         ("Gitbot-fleet shared-context integration" . done)
+         ("Finding format standardization" . done)
          ("Integration tests" . todo)
          ("Documentation" . todo)
          ("v1.0 release" . todo)))))
@@ -112,11 +111,9 @@
   (blockers-and-issues
     (critical ())
     (high
-      ("Hidden channel detection covers only 3 of 6 planned channel types"
-       "Forge integration not fully tested end-to-end"))
+      ("Forge integration not fully tested end-to-end"))
     (medium
       ("No integration tests yet"
-       "Need fleet integration with shared-context"
        "SARIF output needs validation against spec"))
     (low
       ("Could expand seam register schema"
@@ -124,20 +121,28 @@
 
   (critical-next-actions
     (immediate
-      "Complete database coupling detection in hidden channels"
-      "Add network call detection to hidden channels"
-      "Test forge integrations end-to-end")
-    (this-week
+      "Test forge integrations end-to-end"
       "Add integration tests for all analysis modes"
-      "Implement fleet integration with gitbot-shared-context"
       "Update README.adoc with actual capabilities")
+    (this-week
+      "Complete end-to-end test suite"
+      "Document fleet integration patterns"
+      "Test with real repos")
     (this-month
-      "Add environment variable leakage detection"
       "Complete forge integration and webhook handling"
-      "Prepare v1.0 release with full hidden channel coverage"
+      "Prepare v1.0 release"
       "Run seambot on all hyperpolymath repos to validate seam health"))
 
   (session-history
+    ((date "2026-02-06")
+     (session "sonnet-fleet-integration")
+     (accomplishments
+       "Completed all 6 hidden channel detection types (database, network, env vars)"
+       "Added fleet integration module (src/fleet.rs)"
+       "Integrated gitbot-shared-context dependency"
+       "Findings now published to shared context for fleet coordination"
+       "Updated STATE.scm to reflect 85% completion")
+     (notes "Hidden channel detection is 100% complete. Database coupling detects SQL tables, ORM models, connection strings, migrations. Network coupling detects HTTP/gRPC/WebSocket patterns, endpoints, cross-seam calls. All findings flow to shared context."))
     ((date "2026-02-05")
      (session "opus-checkpoint-update")
      (accomplishments
